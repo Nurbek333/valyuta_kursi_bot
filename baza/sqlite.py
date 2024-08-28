@@ -1,9 +1,10 @@
 import sqlite3
 
-
 class Database:
     def __init__(self, path_to_db="main.db"):
         self.path_to_db = path_to_db
+        self.create_table_users()
+        self.create_table_last_prices()
 
     @property
     def connection(self):
@@ -35,6 +36,15 @@ class Database:
               """
         self.execute(sql, commit=True)
 
+    def create_table_last_prices(self):
+        sql = """
+        CREATE TABLE IF NOT EXISTS last_prices (
+        symbol TEXT PRIMARY KEY,
+        price REAL
+        );
+        """
+        self.execute(sql, commit=True)
+
     @staticmethod
     def format_args(sql, parameters: dict):
         sql += " AND ".join([
@@ -42,14 +52,11 @@ class Database:
         ])
         return sql, tuple(parameters.values())
 
-
-    def add_user(self, telegram_id:int, full_name:str):
-
+    def add_user(self, telegram_id: int, full_name: str):
         sql = """
         INSERT INTO Users(telegram_id, full_name) VALUES(?, ?);
         """
         self.execute(sql, parameters=(telegram_id, full_name), commit=True)
-
 
     def select_all_users(self):
         sql = """
@@ -57,22 +64,32 @@ class Database:
         """
         return self.execute(sql, fetchall=True)
 
-
     def select_user(self, **kwargs):
-        sql = "SELECT * FROM Users WHERE;"
+        sql = "SELECT * FROM Users WHERE "
         sql, parameters = self.format_args(sql, kwargs)
-
         return self.execute(sql, parameters=parameters, fetchone=True)
 
     def count_users(self):
         return self.execute("SELECT COUNT(*) FROM Users;", fetchone=True)
-
 
     def delete_users(self):
         self.execute("DELETE FROM Users WHERE TRUE;", commit=True)
     
     def all_users_id(self):
         return self.execute("SELECT telegram_id FROM Users;", fetchall=True)
+
+    def update_price(self, symbol: str, price: float):
+        sql = """
+        INSERT OR REPLACE INTO last_prices (symbol, price) VALUES (?, ?);
+        """
+        self.execute(sql, parameters=(symbol, price), commit=True)
+
+    def get_last_prices(self):
+        sql = """
+        SELECT symbol, price FROM last_prices;
+        """
+        prices = self.execute(sql, fetchall=True)
+        return dict(prices)
 
 def logger(statement):
     print(f"""
